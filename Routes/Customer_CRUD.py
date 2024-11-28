@@ -2,12 +2,13 @@ from flask import Blueprint, request, jsonify
 from models import Customer
 from app import db
 from models.Customer import Customer
-
+from flask_jwt_extended import jwt_required
 # Create a Blueprint for customers
 customer_bp = Blueprint('customer_bp', __name__)
 
 
 @customer_bp.route('/customers', methods=['POST'])
+@jwt_required()
 def create_customer():
     data = request.json
     new_customer = Customer(
@@ -24,6 +25,7 @@ def create_customer():
 
 
 @customer_bp.route('/customers', methods=['GET'])
+@jwt_required()
 def get_customers():
     customers = Customer.query.all()
     return jsonify([{
@@ -37,6 +39,7 @@ def get_customers():
 
 
 @customer_bp.route('/customers/<int:customer_id>', methods=['GET'])
+@jwt_required()
 def get_customer(customer_id):
     Customer_Model = Customer.query.get_or_404(customer_id)
     return jsonify({
@@ -50,6 +53,7 @@ def get_customer(customer_id):
 
 
 @customer_bp.route('/customers/<int:customer_id>', methods=['PUT'])
+@jwt_required()
 def update_customer(customer_id):
     Customer_Model = Customer.query.get_or_404(customer_id)
     data = request.json
@@ -64,6 +68,7 @@ def update_customer(customer_id):
 
 
 @customer_bp.route('/customers/<int:customer_id>', methods=['DELETE'])
+@jwt_required()
 def delete_customer(customer_id):
     Customer_Model = Customer.query.get_or_404(customer_id)
     db.session.delete(Customer_Model)

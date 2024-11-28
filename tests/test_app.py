@@ -105,7 +105,7 @@ def test_create_service_request(client):
 
     response = client.post('/service_requests', json={
         "service_id": 1,  # Assuming this service exists
-        "customer_id": customer_id,
+        "customer_id": 1,
         "professional_id": professional_id,
         "address": "456 Maple Ave",
         "remarks": "Looking for urgent service."

@@ -9,6 +9,7 @@ class ServiceProfessional(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     mobile = db.Column(db.String(10),nullable=False)
+    base_price=db.Column(db.String(10),nullable=True)
     date_created = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     description = db.Column(db.Text, nullable=True)
     service_type = db.Column(db.String(50), nullable=False)  # Example: 'Plumbing', 'Electrician', etc.

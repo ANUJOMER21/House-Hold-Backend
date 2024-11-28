@@ -1,13 +1,16 @@
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
+
 from models.Service_Request import Service_Request
 from app import db
-
+from flask_jwt_extended import jwt_required
 # Create a Blueprint for service requests
 service_request_bp = Blueprint('service_request_bp', __name__)
 
 @service_request_bp.route('/service_requests', methods=['POST'])
+@jwt_required()
 def create_service_request():
     data = request.json
     new_request = Service_Request(
@@ -24,6 +27,7 @@ def create_service_request():
     return jsonify({"message": "Service Request created", "id": new_request.id}), 201
 
 @service_request_bp.route('/service_requests', methods=['GET'])
+@jwt_required()
 def get_service_requests():
     requests = Service_Request.query.all()
     return jsonify([{
@@ -39,6 +43,7 @@ def get_service_requests():
     } for r in requests]), 200
 
 @service_request_bp.route('/service_requests/<int:id>', methods=['GET'])
+@jwt_required()
 def get_service_request(id):
     service_request = Service_Request.query.get_or_404(id)
     return jsonify({
@@ -54,6 +59,7 @@ def get_service_request(id):
     }), 200
 
 @service_request_bp.route('/service_requests/<int:id>', methods=['PUT'])
+@jwt_required()
 def update_service_request(id):
     service_request = Service_Request.query.get_or_404(id)
     data = request.json
@@ -70,6 +76,7 @@ def update_service_request(id):
     return jsonify({"message": "Service Request updated"}), 200
 
 @service_request_bp.route('/service_requests/<int:id>', methods=['DELETE'])
+@jwt_required()
 def delete_service_request(id):
     service_request = Service_Request.query.get_or_404(id)
     db.session.delete(service_request)

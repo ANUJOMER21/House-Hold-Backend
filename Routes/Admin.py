@@ -50,6 +50,6 @@ def block_professional(professional_id):
 def block_customer(customer_id):
     professional = Customer.query.get_or_404(customer_id)
     # Implement any additional verification checks here
-    professional.approved = "deactivate"  # Ensure this field exists in your model
+    professional.customer_status = "Blocked"  # Ensure this field exists in your model
     db.session.commit()
-    return jsonify({"message": "Service professional approved", "professional_id": professional.id}), 200
+    return jsonify({"message": "Service professional deactivate", "professional_id": professional.customer_id}), 200

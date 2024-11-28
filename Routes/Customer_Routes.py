@@ -68,14 +68,14 @@ def get_services():
 
 
 # Close a service request
-@customer_routes_bp.route('/customer/service_requests/<int:request_id>/close', methods=['PATCH'])
+@customer_routes_bp.route('/customer/service_requests/<int:request_id>/complete', methods=['PATCH'])
 @jwt_required()
 def close_service_request(request_id):
     service_request = Service_Request.query.get_or_404(request_id)
     if service_request.status != "requested":
         return jsonify({"message": "Request cannot be closed"}), 400
 
-    service_request.status = "closed"
+    service_request.status = "complete"
     db.session.commit()
     return jsonify({"message": "Service request closed", "request_id": service_request.request_id}), 200
 

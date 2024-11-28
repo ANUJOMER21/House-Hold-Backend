@@ -10,7 +10,7 @@ class Service(db.Model):
     service_price = db.Column(db.Float, nullable=False)
     service_time_required = db.Column(db.Integer, nullable=True)  # time in minutes
     service_description = db.Column(db.Text, nullable=True)
-    image = db.Column(db.LargeBinary, nullable=True)  # You might consider using a URL to an image instead
+    image = db.Column(db.Text, nullable=True)  # You might consider using a URL to an image instead
 
     def __repr__(self):
         return f"<Service(service_id={self.service_id}, service_name='{self.service_name}', service_price={self.service_price})>"

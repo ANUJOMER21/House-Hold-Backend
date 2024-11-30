@@ -1,10 +1,13 @@
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify
 
+from models.ServiceProfessional import ServiceProfessional
 from models.Service_Request import Service_Request
 from models.Customer import Customer
 from models.Service import Service
 from models.Review import Review
-from flask_jwt_extended import create_access_token, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
 
 customer_routes_bp = Blueprint('customer_routes_bp', __name__)
@@ -34,7 +37,8 @@ def register_customer():
     db.session.add(new_customer)
     db.session.commit()
     access_token = create_access_token(identity=new_customer.customer_id)
-    return jsonify({"message": "Registration successful", "customer_id": new_customer.customer_id,"access_token": access_token}), 201
+    return jsonify({"message": "Registration successful", "customer_id": new_customer.customer_id,
+                    "access_token": access_token}), 201
 
 
 # Login route
@@ -45,17 +49,50 @@ def login_customer():
     password = data.get('customer_password')
 
     customer = Customer.query.filter(
-        (Customer.customer_email == email_or_phone) | (Customer.customer_phone_number == email_or_phone)
+        (Customer.customer_phone_number == email_or_phone)
     ).first()
     print(password)
     if not customer or customer.customer_password != password:
         return jsonify({"message": "Invalid credentials"}), 401
     access_token = create_access_token(identity=customer.customer_id)
-    return jsonify({"message": "Login successful", "customer_id": customer.customer_id,"access_token": access_token}), 200
+    return jsonify(
+        {"message": "Login successful", "customer_id": customer.customer_id, "access_token": access_token}), 200
+
+
+@customer_routes_bp.route('/customer/services_partner', methods=['GET'])
+@jwt_required()
+def get_services_with_partners():
+    services = Service.query.all()
+    result = []
+
+    for service in services:
+        partners = ServiceProfessional.query.filter_by(service_type=service.service_name).all()
+        partner_list = [{
+            'partner_id': p.id,
+            'name': p.name,
+            'mobile': p.mobile,
+            'base_price': p.base_price,
+            'date_created': p.date_created,
+            'description': p.description,
+            'experience': p.experience,
+            'approved': p.approved
+        } for p in partners]
+
+        result.append({
+            'service_id': service.service_id,
+            'service_name': service.service_name,
+            'service_price': service.service_price,
+            'service_time_required': service.service_time_required,
+            'service_description': service.service_description,
+            'image': service.image,  # Convert binary image to hex
+            'partners': partner_list
+        })
+
+    return jsonify(result), 200
 
 
 # View/Search Services
-@customer_routes_bp.route('/services', methods=['GET'])
+@customer_routes_bp.route('/services_query', methods=['GET'])
 @jwt_required()
 def get_services():
     query = request.args.get('query')
@@ -68,17 +105,79 @@ def get_services():
 
 
 # Close a service request
-@customer_routes_bp.route('/customer/service_requests/<int:request_id>/complete', methods=['PATCH'])
+@customer_routes_bp.route('/customer/update_service_status', methods=['POST'])
 @jwt_required()
-def close_service_request(request_id):
-    service_request = Service_Request.query.get_or_404(request_id)
-    if service_request.status != "requested":
-        return jsonify({"message": "Request cannot be closed"}), 400
+def updaterequeststatus():
+    data = request.json
+    service_request_id = data.get('service_id')  # Either email or mobile
+    status = data.get('status')
+    remark= data.get('remarks')
+    print(remark)
+    service_request = Service_Request.query.get_or_404(service_request_id)
 
-    service_request.status = "complete"
+    # Check if the request is already accepted or rejected
+
+
+    if(status=="completed"):
+         service_request.date_of_completion=datetime.utcnow()
+    service_request.service_status = status
+    service_request.remarks =remark
     db.session.commit()
-    return jsonify({"message": "Service request closed", "request_id": service_request.request_id}), 200
+    return jsonify({"message": "Request accepted", "request_id": service_request.id}), 200
 
 
+@customer_routes_bp.route('/customer/add_service', methods=['POST'])
+@jwt_required()
+def customer_add_service():
+    id = get_jwt_identity()
+    data = request.json
+    new_request = Service_Request(
+        service_id=data['service_id'],
+        customer_id=id,
+        professional_id=data['professional_id'],
+        address='address',
+        price=data['price'],
+        service_status='requested',  # Default status
+        date_of_request=datetime.utcnow()
+    )
+    db.session.add(new_request)
+    db.session.commit()
+    db.session.close()
+    return jsonify({"message": "Service Request created"})
 
+@customer_routes_bp.route('/customer/get_service', methods=['GET'])
+@jwt_required()
+def get_service_requests_by_customer():
+    try:
+        # Query service requests by customer_id
+        customer_id = get_jwt_identity()
+        service_requests = db.session.query(Service_Request).filter_by(customer_id=customer_id).all()
 
+        if not service_requests:
+            return jsonify({"message": "No service requests found for the given customer ID"}), 404
+
+        # Build response data
+        response_data = []
+        for request in service_requests:
+            response_data.append({
+                "service_request_id": request.id,
+                "service_name": request.service.service_name,
+                "service_description": request.service.service_description,
+                "service_price": request.price,
+                "address": request.address,
+                "date_of_request": request.date_of_request.strftime('%Y-%m-%d %H:%M:%S') if request.date_of_request else None,
+                "date_of_completion": request.date_of_completion.strftime('%Y-%m-%d %H:%M:%S') if request.date_of_completion else None,
+                "service_status": request.service_status,
+                "remarks": request.remarks,
+                "professional": {
+                    "name": request.professional.name,
+                    "mobile": request.professional.mobile,
+                    "service_type": request.professional.service_type,
+                    "experience": request.professional.experience
+                }
+            })
+
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

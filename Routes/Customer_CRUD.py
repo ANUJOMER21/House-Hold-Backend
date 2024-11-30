@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify
 from models import Customer
 from app import db
 from models.Customer import Customer
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
 # Create a Blueprint for customers
 customer_bp = Blueprint('customer_bp', __name__)
 
@@ -38,9 +39,10 @@ def get_customers():
     } for c in customers]), 200
 
 
-@customer_bp.route('/customers/<int:customer_id>', methods=['GET'])
+@customer_bp.route('/customers_one', methods=['GET'])
 @jwt_required()
-def get_customer(customer_id):
+def get_customer():
+    customer_id = get_jwt_identity()
     Customer_Model = Customer.query.get_or_404(customer_id)
     return jsonify({
         'customer_id': Customer_Model.customer_id,
@@ -52,9 +54,10 @@ def get_customer(customer_id):
     }), 200
 
 
-@customer_bp.route('/customers/<int:customer_id>', methods=['PUT'])
+@customer_bp.route('/customers', methods=['PUT'])
 @jwt_required()
-def update_customer(customer_id):
+def update_customer():
+    customer_id = get_jwt_identity()
     Customer_Model = Customer.query.get_or_404(customer_id)
     data = request.json
 

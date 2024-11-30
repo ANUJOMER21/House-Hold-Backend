@@ -69,8 +69,7 @@ def updaterequeststatus():
     service_request = Service_Request.query.get_or_404(service_request_id)
 
     # Check if the request is already accepted or rejected
-    if service_request.service_status != "requested":
-        return jsonify({"message": f"Request already {service_request.service_status}"}), 400
+
 
     if(status=="completed"):
          service_request.date_of_completion=datetime.utcnow()
@@ -99,11 +98,12 @@ def get_complete_request():
         completed_services_list = [
             {
                "id": service.id,
-                "name": service.service_id,  # Example attribute
+                "name": service.customer.customer_name,  # Example attribute
                 "address":service.address,
                 "date_of_request":service.date_of_request,
                 "date_of_completion":service.date_of_completion,
-                "service_status": service.service_status
+                "service_status": service.service_status,
+                "remarks":service.remarks
             }
             for service in completed_services
         ]
@@ -136,7 +136,7 @@ def get_non_completed_request():
         other_services_list = [
             {
                 "id": service.id,
-                "name": service.service_id,  # Example attribute
+                "name": service.customer.customer_name,  # Example attribute
                 "address":service.address,
                 "date_of_request":service.date_of_request,
                 "date_of_completion":service.date_of_completion,

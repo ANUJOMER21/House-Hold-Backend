@@ -1,9 +1,14 @@
-from flask import Blueprint, jsonify
+import os
+
+import matplotlib
+from flask import Blueprint, jsonify, Response, send_from_directory
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from models import Customer, Service, Service_Request, ServiceProfessional
 from app import db
-
+import matplotlib.pyplot as plt
+import io
+matplotlib.use('Agg')
 # Create a blueprint for analysis routes
 analysis_blueprint = Blueprint('analysis', __name__)
 
@@ -199,3 +204,33 @@ def inactive_customers():
         'inactive_customers': [{'customer_id': customer_id, 'customer_name': customer_name} for
                                customer_id, customer_name in inactive_customers]
     })
+
+
+
+@analysis_blueprint.route('/api/graph',methods=['GET'])
+def get_graph():
+    IMAGE_FOLDER = "generated_images"
+    os.makedirs(IMAGE_FOLDER, exist_ok=True)
+    try:
+        # Create a sample plot
+        plt.figure(figsize=(6, 4))
+        plt.plot([1, 2, 3, 4], [10, 20, 25, 30], label="Sample Line")
+        plt.xlabel("X-axis")
+        plt.ylabel("Y-axis")
+        plt.title("Sample Graph")
+        plt.legend()
+
+        # Save the plot to a file
+        image_path = os.path.join(IMAGE_FOLDER, "graph.png")
+        plt.savefig(image_path)
+        plt.close()
+
+        # Return the image URL
+        image_url = f"http://127.0.0.1:5000/images/graph.png"
+        return jsonify({"image_url": image_url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@analysis_blueprint.route('/images/<filename>')
+def serve_image(filename):
+    IMAGE_FOLDER = "generated_images"
+    return send_from_directory(IMAGE_FOLDER, filename)

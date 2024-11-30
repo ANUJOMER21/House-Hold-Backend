@@ -82,3 +82,6 @@ def delete_service(service_id):
     db.session.commit()
 
     return jsonify({"message": "Service deleted"}), 204
+
+
+

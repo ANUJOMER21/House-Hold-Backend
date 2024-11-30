@@ -10,6 +10,7 @@ class Service_Request(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False)
     professional_id = db.Column(db.Integer, db.ForeignKey('service_professionals.id'), nullable=False)
     address = db.Column(db.String, nullable=False)
+    price = db.Column(db.String,nullable=True)
     date_of_request = db.Column(db.DateTime, nullable=False)
     date_of_completion = db.Column(db.DateTime, nullable=True)
     service_status = db.Column(db.String(20), nullable=False, default="requested")  # requested, accepted, closed

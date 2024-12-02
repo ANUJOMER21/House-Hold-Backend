@@ -1,13 +1,16 @@
+import redis
+import json
 from datetime import datetime
-
 from flask import Blueprint, request, jsonify
 from models.ServiceProfessional import ServiceProfessional
 from models.Service_Request import Service_Request
 from app import db
-from flask_jwt_extended import create_access_token, jwt_required
-from flask_jwt_extended import get_jwt_identity
-professional_bp = Blueprint('professional_bp', __name__)
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from Cache.cache_utils import redis_client,cache_data
 
+
+# Blueprint for professionals
+professional_bp = Blueprint('professional_bp', __name__)
 
 # Registration route
 @professional_bp.route('/professional/register', methods=['POST'])
@@ -37,18 +40,23 @@ def professional_register():
     )
     db.session.add(new_professional)
     db.session.commit()
+
+    # Invalidate related caches
+    redis_client.delete("completed_requests")
+    redis_client.delete("non_completed_requests")
+
     access_token = create_access_token(identity=new_professional.id)
     return jsonify({"message": "Registration successful", "professional_id": new_professional.id, "access_token": access_token}), 201
 
 
-# Login route with mobile or email
+# Login route with mobile
 @professional_bp.route('/professional/login', methods=['POST'])
 def professional_login():
     data = request.json
-    identifier = data.get('mobile')  # Either email or mobile
+    identifier = data.get('mobile')
     password = data.get('password')
 
-    # Check if identifier is an email or mobile and find the professional
+    # Check if identifier is a mobile and find the professional
     professional = ServiceProfessional.query.filter(
         (ServiceProfessional.mobile == identifier)
     ).first()
@@ -57,28 +65,31 @@ def professional_login():
     if not professional or professional.password != password:
         return jsonify({"message": "Invalid credentials"}), 401
     access_token = create_access_token(identity=professional.id)
-    return jsonify({"message": "Login successful", "professional_id": professional.id,"access_token": access_token}), 200
+    return jsonify({"message": "Login successful", "professional_id": professional.id, "access_token": access_token}), 200
 
 
+# Update service request status
 @professional_bp.route('/professional/update_service_status', methods=['POST'])
 @jwt_required()
 def updaterequeststatus():
     data = request.json
-    service_request_id = data.get('service_id')  # Either email or mobile
+    service_request_id = data.get('service_id')
     status = data.get('status')
     service_request = Service_Request.query.get_or_404(service_request_id)
 
-    # Check if the request is already accepted or rejected
-
-
-    if(status=="completed"):
-         service_request.date_of_completion=datetime.utcnow()
+    if status == "completed":
+        service_request.date_of_completion = datetime.utcnow()
     service_request.service_status = status
     db.session.commit()
-    return jsonify({"message": "Request accepted", "request_id": service_request.id}), 200
+
+    # Invalidate related caches
+    redis_client.delete("completed_requests")
+    redis_client.delete("non_completed_requests")
+
+    return jsonify({"message": "Request status updated", "request_id": service_request.id}), 200
 
 
-
+# Get completed requests
 @professional_bp.route('/professional/getcompletedrequest', methods=['GET'])
 @jwt_required()
 def get_complete_request():
@@ -151,6 +162,3 @@ def get_non_completed_request():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-

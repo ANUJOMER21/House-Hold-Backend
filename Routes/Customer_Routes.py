@@ -1,17 +1,15 @@
 from datetime import datetime
-
 from flask import Blueprint, request, jsonify
-
 from models.ServiceProfessional import ServiceProfessional
 from models.Service_Request import Service_Request
 from models.Customer import Customer
 from models.Service import Service
-from models.Review import Review
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
+from Cache.cache_utils import cache_data  # Import the caching utility
+import json
 
 customer_routes_bp = Blueprint('customer_routes_bp', __name__)
-
 
 # Registration route
 @customer_routes_bp.route('/customer/register', methods=['POST'])
@@ -37,8 +35,8 @@ def register_customer():
     db.session.add(new_customer)
     db.session.commit()
     access_token = create_access_token(identity=new_customer.customer_id)
-    return jsonify({"message": "Registration successful", "customer_id": new_customer.customer_id,
-                    "access_token": access_token}), 201
+    return jsonify({"message": "Registration successful", "customer_id": new_customer.customer_id,"access_token": access_token}), 201
+
 
 
 # Login route
@@ -49,46 +47,55 @@ def login_customer():
     password = data.get('customer_password')
 
     customer = Customer.query.filter(
-        (Customer.customer_phone_number == email_or_phone)
+        (Customer.customer_email == email_or_phone) | (Customer.customer_phone_number == email_or_phone)
+
     ).first()
     print(password)
     if not customer or customer.customer_password != password:
         return jsonify({"message": "Invalid credentials"}), 401
     access_token = create_access_token(identity=customer.customer_id)
+    return jsonify({"message": "Login successful", "customer_id": customer.customer_id,"access_token": access_token}), 200
     return jsonify(
         {"message": "Login successful", "customer_id": customer.customer_id, "access_token": access_token}), 200
 
 
+
+# Get services with partners
 @customer_routes_bp.route('/customer/services_partner', methods=['GET'])
 @jwt_required()
 def get_services_with_partners():
-    services = Service.query.all()
-    result = []
+    cache_key = "services_with_partners"
 
-    for service in services:
-        partners = ServiceProfessional.query.filter_by(service_type=service.service_name).all()
-        partner_list = [{
-            'partner_id': p.id,
-            'name': p.name,
-            'mobile': p.mobile,
-            'base_price': p.base_price,
-            'date_created': p.date_created,
-            'description': p.description,
-            'experience': p.experience,
-            'approved': p.approved
-        } for p in partners]
+    def fetch_services_with_partners():
+        services = Service.query.all()
+        result = []
+        for service in services:
+            partners = ServiceProfessional.query.filter_by(service_type=service.service_name).all()
+            partner_list = [{
+                'partner_id': p.id,
+                'name': p.name,
+                'mobile': p.mobile,
+                'base_price': p.base_price,
+                'date_created': p.date_created.isoformat(),  # Convert datetime to ISO string
+                'description': p.description,
+                'experience': p.experience,
+                'approved': p.approved
+            } for p in partners]
 
-        result.append({
-            'service_id': service.service_id,
-            'service_name': service.service_name,
-            'service_price': service.service_price,
-            'service_time_required': service.service_time_required,
-            'service_description': service.service_description,
-            'image': service.image,  # Convert binary image to hex
-            'partners': partner_list
-        })
+            result.append({
+                'service_id': service.service_id,
+                'service_name': service.service_name,
+                'service_price': service.service_price,
+                'service_time_required': service.service_time_required,
+                'service_description': service.service_description,
+                'image': service.image,
+                'partners': partner_list
+            })
+        return result
 
-    return jsonify(result), 200
+    # Cache the result
+    response = cache_data(cache_key, fetch_services_with_partners, expiration=300)
+    return jsonify(json.loads(response)), 200
 
 
 # View/Search Services
@@ -96,14 +103,20 @@ def get_services_with_partners():
 @jwt_required()
 def get_services():
     query = request.args.get('query')
-    if query:
-        services = Service.query.filter(Service.service_name.ilike(f'%{query}%')).all()
-    else:
-        services = Service.query.all()
+    cache_key = f"services_query:{query}" if query else "all_services"
 
-    return jsonify([{"service_id": s.service_id, "service_name": s.service_name} for s in services]), 200
+    def fetch_services():
+        if query:
+            services = Service.query.filter(Service.service_name.ilike(f'%{query}%')).all()
+        else:
+            services = Service.query.all()
+        return [{"service_id": s.service_id, "service_name": s.service_name} for s in services]
+
+    response = cache_data(cache_key, fetch_services, expiration=180)
+    return jsonify(json.loads(response)), 200
 
 
+# Close a service request (No caching needed as this modifies data)
 # Close a service request
 @customer_routes_bp.route('/customer/update_service_status', methods=['POST'])
 @jwt_required()
@@ -112,7 +125,7 @@ def updaterequeststatus():
     service_request_id = data.get('service_id')  # Either email or mobile
     status = data.get('status')
     remark= data.get('remarks')
-    print(remark)
+    print(status)
     service_request = Service_Request.query.get_or_404(service_request_id)
 
     # Check if the request is already accepted or rejected
@@ -145,6 +158,9 @@ def customer_add_service():
     db.session.close()
     return jsonify({"message": "Service Request created"})
 
+
+
+# Get service requests by customer
 @customer_routes_bp.route('/customer/get_service', methods=['GET'])
 @jwt_required()
 def get_service_requests_by_customer():

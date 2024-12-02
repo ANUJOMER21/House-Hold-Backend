@@ -1,69 +1,37 @@
 from celery import Celery
 import csv
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from sqlalchemy.orm import sessionmaker
+import os  # For securely accessing environment variables
 
 from models.Service_Request import Service_Request
-import smtplib  # or another notification method
-from app import db
+from app import db, create_app  # Ensure you import the app factory function
 
+# Configure Celery
 app = Celery('reminders', broker='your_broker_url')
-
-# Database session setup
-Session = sessionmaker(bind=db.engine)
-session = Session()
-
 
 @app.task
 def export_service_requests():
-    # Query for closed service requests
-    closed_requests = session.query(Service_Request).filter(Service_Request.status == 'closed').all()
+    # Create an application context for the current task
+    with create_app().app_context():  # Assuming you have a factory function `create_app`
+        # Database session setup within the app context
+        Session = sessionmaker(bind=db.engine)
+        session = Session()
 
-    # Export data to CSV
-    csv_filename = 'service_requests.csv'
-    with open(csv_filename, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['service_id', 'customer_id', 'professional_id', 'date_of_request', 'remarks'])
+        try:
+            # Query for closed service requests
+            closed_requests = session.query(Service_Request).filter(Service_Request.status == 'closed').all()
 
-        for request in closed_requests:
-            writer.writerow(
-                [request.id, request.customer_id, request.professional_id, request.date_of_request, request.remarks])
+            # Export data to CSV
+            csv_filename = 'service_requests.csv'
+            with open(csv_filename, mode='w', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(['service_id', 'customer_id', 'professional_id', 'date_of_request', 'remarks'])
 
-    send_alert("CSV Export Complete",)  # Notify admin
+                for request in closed_requests:
+                    writer.writerow([request.id, request.customer_id, request.professional_id, request.date_of_request, request.remarks])
 
-    session.close()
-
-
-def send_alert(message):
-    # Print message to the console (or log it to a file)
-    print(f"ALERT: {message}")
-
-
-def send_alert(message,customer_email):
-    sender_email = "anujomer111@gmail.com"
-    receiver_email = customer_email
-    password = "An@240702"
-
-    subject = "Alert: Task Complete"
-
-    # Create the email content
-    body = f"Task completed successfully!\n\nDetails:\n{message}"
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Send the email
-    try:
-        with smtplib.SMTP('smtp.example.com', 587) as server:
-            server.starttls()  # Encrypt connection
-            server.login(sender_email, password)
-            text = msg.as_string()
-            server.sendmail(sender_email, receiver_email, text)
-        print("Alert email sent successfully.")
-    except Exception as e:
-        print(f"Error sending alert email: {e}")
+            print(f"CSV file '{csv_filename}' created successfully.")
+        except Exception as e:
+            print(f"Error during export: {e}")
+        finally:
+            session.close()  # Ensure the session is closed properly

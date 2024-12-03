@@ -1,46 +1,43 @@
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
-from celery import Celery
-from celery.schedules import crontab
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 from flask import render_template_string
 from models.Service_Request import Service_Request
-from app import db
+from database import db
 import smtplib  # or another email library
-
-app = Celery('reminders', broker='your_broker_url')
 
 # Database session setup
 Session = sessionmaker(bind=db.engine)
 session = Session()
 
-
-def generate_monthly_report(customer, service_requests):
-    # Filter the service requests for the current month and customer
+def generate_weekly_report(customer, service_requests):
+    # Calculate the start and end of the current week
     now = datetime.now()
-    start_of_month = datetime(now.year, now.month, 1)
-    end_of_month = datetime(now.year, now.month + 1, 1) - timedelta(days=1)
+    start_of_week = now - timedelta(days=now.weekday())  # Start of the week (Monday)
+    end_of_week = start_of_week + timedelta(days=6)  # End of the week (Sunday)
 
-    # Filter service requests for this customer and this month
+    # Filter service requests for this customer and this week
     filtered_requests = [
         request for request in service_requests
-        if request.customer_id == customer.customer_id and start_of_month <= request.date_of_request <= end_of_month
+        if request.customer_id == customer.customer_id and start_of_week <= request.date_of_request <= end_of_week
+
     ]
+    print(filtered_requests)
+
 
     # Create a summary of the service requests
     total_requests = len(filtered_requests)
-    closed_requests = [req for req in filtered_requests if req.status == 'closed']
-    pending_requests = [req for req in filtered_requests if req.status == 'pending']
+    closed_requests = [req for req in filtered_requests if req.status == 'completed']
+    pending_requests = [req for req in filtered_requests if req.status != 'completed']
 
     # Generate HTML content for the report
     html_content = render_template_string("""
     <html>
-    <head><title>Monthly Service Report</title></head>
+    <head><title>Weekly Service Report</title></head>
     <body>
-        <h1>Monthly Service Report for {{ customer.customer_name }}</h1>
-        <p>Report for the month of {{ now.strftime('%B %Y') }}</p>
+        <h1>Weekly Service Report for {{ customer.customer_name }}</h1>
+        <p>Report for the week of {{ start_of_week.strftime('%B %d, %Y') }} to {{ end_of_week.strftime('%B %d, %Y') }}</p>
         
         <h2>Summary</h2>
         <p>Total requests: {{ total_requests }}</p>
@@ -66,69 +63,33 @@ def generate_monthly_report(customer, service_requests):
         </table>
     </body>
     </html>
-    """, customer=customer, now=now, total_requests=total_requests,
-                                          closed_requests=closed_requests, pending_requests=pending_requests,
-                                          filtered_requests=filtered_requests)
+    """, customer=customer, start_of_week=start_of_week, end_of_week=end_of_week,
+          total_requests=total_requests, closed_requests=closed_requests, pending_requests=pending_requests,
+          filtered_requests=filtered_requests)
 
     return html_content
 
-
-@app.task
-def send_monthly_report():
-    from datetime import datetime, timedelta
+def send_weekly_report():
     now = datetime.now()
 
-    # Get start and end of the last month
-    start_of_last_month = datetime(now.year, now.month - 1, 1)
-    end_of_last_month = datetime(now.year, now.month, 1) - timedelta(days=1)
+    # Calculate the start and end of the last week
+    end_of_last_week = now - timedelta(days=now.weekday() + 1)  # End of the last week (Sunday)
+    start_of_last_week = end_of_last_week - timedelta(days=6)  # Start of the last week (Monday)
 
-    # Query for service requests from the last month
+    # Query for service requests from the last week
     service_requests = session.query(Service_Request).filter(
-        Service_Request.date_of_request >= start_of_last_month,
-        Service_Request.date_of_request <= end_of_last_month
+        Service_Request.date_of_request >= start_of_last_week,
+        Service_Request.date_of_request <= end_of_last_week
     ).all()
+    print(service_requests)
 
     # Generate and send reports for each customer
     customers = set([request.customer for request in service_requests])
     for customer in customers:
-        report = generate_monthly_report(customer, service_requests)
-        send_alert(report, customer.customer_email)  # Send email to customer
+        report = generate_weekly_report(customer, service_requests)
+        # print(report)
+        #send_alert(report, customer.customer_email)  # Send email to customer
 
     session.close()
 
-
-# Schedule to send report on the 1st of every month at midnight
-app.conf.beat_schedule = {
-    'send-monthly-report': {
-        'task': 'send_monthly_report',
-        'schedule': crontab(hour=0, minute=0, day_of_month=1),  # First day of the month
-    },
-}
-
-
-def send_alert(message, customer_email):
-    sender_email = "anujomer111@gmail.com"
-    receiver_email = customer_email
-    password = "An@240702"
-
-    subject = "Alert: Task Complete"
-
-    # Create the email content
-    body = f"Task completed successfully!\n\nDetails:\n{message}"
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Send the email
-    try:
-        with smtplib.SMTP('smtp.example.com', 587) as server:
-            server.starttls()  # Encrypt connection
-            server.login(sender_email, password)
-            text = msg.as_string()
-            server.sendmail(sender_email, receiver_email, text)
-        print("Alert email sent successfully.")
-    except Exception as e:
-        print(f"Error sending alert email: {e}")
+# Schedule this function to run on a weekly basis (e.g., every Monday at midnight)

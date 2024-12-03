@@ -1,5 +1,5 @@
 # Service - It refers to the type of service that the customer is looking for e.g AC servicing, plumbing etc.
-from app import db
+from database import db
 
 
 class Service_Request(db.Model):

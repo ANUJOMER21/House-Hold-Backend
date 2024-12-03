@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 
 from Cache.cache_utils import redis_client
 from models import Customer
-from app import db
+from database import db
 from models.Customer import Customer
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from Cache.cache_utils import cache_data  # Import the caching utility

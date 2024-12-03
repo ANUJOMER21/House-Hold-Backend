@@ -1,4 +1,4 @@
-from app import db
+from database import db
 
 class Review(db.Model):
     __tablename__ ='review'

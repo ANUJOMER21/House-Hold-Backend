@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 import pytest
-from app import create_app, db
+from main import create_app, db
 from models.ServiceProfessional import ServiceProfessional
 from models.Review import Review
 from models.Service import Service

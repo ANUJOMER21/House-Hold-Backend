@@ -6,7 +6,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from models import Customer, Service, Service_Request, ServiceProfessional
-from app import db
+from database import db
 import matplotlib.pyplot as plt
 from Graph import graphs
 import io

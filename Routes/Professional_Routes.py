@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from models.ServiceProfessional import ServiceProfessional
 from models.Service_Request import Service_Request
-from app import db
+from database import db
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from Cache.cache_utils import redis_client,cache_data
 

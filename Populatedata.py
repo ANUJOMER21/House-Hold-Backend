@@ -1,12 +1,13 @@
 from datetime import datetime
-from app import db, create_app  # Assuming your SQLAlchemy instance is named `db` and initialized in `app.py`
+from database import db
+from main import  app# Assuming your SQLAlchemy instance is named `db` and initialized in `main.py`
 from models.Customer import Customer # Import your models
 from models.Service_Request import Service_Request
 from models.ServiceProfessional import ServiceProfessional
 from models.Service import Service
 
 def populate_demo_data():
-    app = create_app()
+
     with app.app_context():
         # Clear existing data
         db.session.query(Service_Request).delete()

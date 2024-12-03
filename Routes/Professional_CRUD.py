@@ -2,7 +2,7 @@ import redis
 import json
 from flask import Blueprint, request, jsonify
 from models.ServiceProfessional import ServiceProfessional
-from app import db
+from database import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from Cache.cache_utils import cache_data
 from Cache.cache_utils import redis_client

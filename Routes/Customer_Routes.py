@@ -5,7 +5,7 @@ from models.Service_Request import Service_Request
 from models.Customer import Customer
 from models.Service import Service
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from app import db
+from database import db
 from Cache.cache_utils import cache_data  # Import the caching utility
 import json
 

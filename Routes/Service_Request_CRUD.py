@@ -3,11 +3,15 @@ import json
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
+
+
 from models.Service_Request import Service_Request
-from app import db
+from database import db
 from Cache.cache_utils import cache_data,redis_client
 # Create a Blueprint for service requests
 service_request_bp = Blueprint('service_request_bp', __name__)
+
+
 
 @service_request_bp.route('/service_requests', methods=['POST'])
 @jwt_required()

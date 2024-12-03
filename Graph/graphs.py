@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from datetime import datetime
-from app import db, create_app
+from database import db
+
 from models.Service_Request import Service_Request
 from models.Customer import Customer
 from models.ServiceProfessional import ServiceProfessional
@@ -21,15 +22,15 @@ def create_generated_images_folder():
 
 # User Graphs
 def user_spending_over_time(user_id):
-    app = create_app()
-    with app.app_context():
-        spending = db.session.query(
-            db.func.strftime('%Y-%m', Service_Request.date_of_request).label('month'),
+   
+
+    spending = db.session.query(
+        db.func.strftime('%Y-%m', Service_Request.date_of_request).label('month'),
             db.func.sum(Service_Request.price).label('total_spent')
         ).filter(Service_Request.customer_id == user_id).group_by('month').all()
-        save_path = os.path.join(IMAGE_FOLDER, "user_spending_over_time.png")
-        df = pd.DataFrame(spending, columns=['Month', 'Total Spent'])
-        if not df.empty:
+    save_path = os.path.join(IMAGE_FOLDER, "user_spending_over_time.png")
+    df = pd.DataFrame(spending, columns=['Month', 'Total Spent'])
+    if not df.empty:
             df['Month'] = pd.to_datetime(df['Month'])
             df.set_index('Month').plot(kind='line', marker='o', legend=False, title='Your Spending Over Time')
             plt.ylabel('Total Spending ($)')
@@ -40,16 +41,16 @@ def user_spending_over_time(user_id):
 
 
 def user_service_usage(user_id):
-    app = create_app()
-    with app.app_context():
-        usage = db.session.query(Service.service_name, db.func.count(Service_Request.id).label('usage')) \
+   
+ 
+    usage = db.session.query(Service.service_name, db.func.count(Service_Request.id).label('usage')) \
             .join(Service, Service.service_id == Service_Request.service_id) \
             .filter(Service_Request.customer_id == user_id) \
             .group_by(Service.service_name).all()
-        save_path = os.path.join(IMAGE_FOLDER, "user_service_usage.png")
+    save_path = os.path.join(IMAGE_FOLDER, "user_service_usage.png")
 
-        df = pd.DataFrame(usage, columns=['Service', 'Usage'])
-        if not df.empty:
+    df = pd.DataFrame(usage, columns=['Service', 'Usage'])
+    if not df.empty:
             df.plot(kind='bar', x='Service', y='Usage', legend=False, title='Your Service Usage')
             plt.ylabel('Number of Requests')
             plt.xlabel('Service')
@@ -60,8 +61,8 @@ def user_service_usage(user_id):
 
 
 def professional_earnings_over_time(pro_id):
-    app = create_app()
-    with app.app_context():
+   
+    
         # Query for total earnings grouped by day
         earnings = db.session.query(
             db.func.strftime('%m-%d', Service_Request.date_of_request).label('day'),
@@ -101,8 +102,8 @@ def professional_earnings_over_time(pro_id):
         return os.path.basename(save_path)
 
 def professional_daily_jobs(pro_id):
-    app = create_app()
-    with app.app_context():
+   
+    
         # Query for daily job counts
         jobs = db.session.query(
             db.func.strftime('%m-%d', Service_Request.date_of_request).label('day'),
@@ -126,8 +127,8 @@ def professional_daily_jobs(pro_id):
         return os.path.basename(save_path)
 
 def professional_completed_pending_jobs_daily(pro_id):
-    app = create_app()
-    with app.app_context():
+   
+    
         # Query for daily completed jobs
         completed_jobs = db.session.query(
             db.func.strftime('%m-%d', Service_Request.date_of_request).label('day'),
@@ -181,15 +182,15 @@ def professional_completed_pending_jobs_daily(pro_id):
 
 # Admin Graphs
 def admin_revenue_by_service():
-    app = create_app()
-    with app.app_context():
-        revenue = db.session.query(Service.service_name, db.func.sum(Service_Request.price).label('revenue')) \
+   
+    
+    revenue = db.session.query(Service.service_name, db.func.sum(Service_Request.price).label('revenue')) \
             .join(Service, Service.service_id == Service_Request.service_id) \
             .group_by(Service.service_name).all()
-        save_path = os.path.join(IMAGE_FOLDER, "admin_revenue_by_service.png")
+    save_path = os.path.join(IMAGE_FOLDER, "admin_revenue_by_service.png")
 
-        df = pd.DataFrame(revenue, columns=['Service', 'Revenue'])
-        if not df.empty:
+    df = pd.DataFrame(revenue, columns=['Service', 'Revenue'])
+    if not df.empty:
             df.plot(kind='bar', x='Service', y='Revenue', legend=False, title='Revenue by Service')
             plt.ylabel('Revenue ($)')
             plt.xlabel('Service')
@@ -200,17 +201,17 @@ def admin_revenue_by_service():
 
 
 def admin_professional_activity_levels():
-    app = create_app()
-    with app.app_context():
-        activity_levels = db.session.query(
+   
+    
+    activity_levels = db.session.query(
             ServiceProfessional.approved,
             db.func.count(ServiceProfessional.id).label('count')
         ).group_by(ServiceProfessional.approved).all()
-        save_path = os.path.join(IMAGE_FOLDER, "admin_professional_activity_levels.png")
-        print("admin_professional_activity_levels")
-        df = pd.DataFrame(activity_levels, columns=['Approved', 'Count'])
-        df['Approved'] = df['Approved'].map({True: 'Active', False: 'Inactive'})
-        if not df.empty:
+    save_path = os.path.join(IMAGE_FOLDER, "admin_professional_activity_levels.png")
+    print("admin_professional_activity_levels")
+    df = pd.DataFrame(activity_levels, columns=['Approved', 'Count'])
+    df['Approved'] = df['Approved'].map({True: 'Active', False: 'Inactive'})
+    if not df.empty:
             df.plot(kind='bar', x='Approved', y='Count', legend=False, title='Professional Activity Levels')
             plt.ylabel('Number of Professionals')
             plt.tight_layout()
@@ -220,16 +221,16 @@ def admin_professional_activity_levels():
 
 
 def admin_requests_by_status():
-    app = create_app()
-    with app.app_context():
-        statuses = db.session.query(
+   
+    
+    statuses = db.session.query(
             Service_Request.service_status,
             db.func.count(Service_Request.id).label('count')
         ).group_by(Service_Request.service_status).all()
-        save_path = os.path.join(IMAGE_FOLDER, "admin_requests_by_status.png")
+    save_path = os.path.join(IMAGE_FOLDER, "admin_requests_by_status.png")
 
-        df = pd.DataFrame(statuses, columns=['Status', 'Count'])
-        if not df.empty:
+    df = pd.DataFrame(statuses, columns=['Status', 'Count'])
+    if not df.empty:
             df.plot(kind='bar', x='Status', y='Count', legend=False, title='Requests by Status')
             plt.ylabel('Number of Requests')
             plt.tight_layout()
@@ -239,16 +240,16 @@ def admin_requests_by_status():
 
 
 def admin_top_cities():
-    app = create_app()
-    with app.app_context():
-        cities = db.session.query(
+   
+    
+    cities = db.session.query(
             Service_Request.address,
             db.func.count(Service_Request.id).label('request_count')
         ).group_by(Service_Request.address).order_by(db.func.count(Service_Request.id).desc()).limit(10).all()
-        save_path = os.path.join(IMAGE_FOLDER, "admin_top_cities.png")
+    save_path = os.path.join(IMAGE_FOLDER, "admin_top_cities.png")
 
-        df = pd.DataFrame(cities, columns=['City', 'Request Count'])
-        if not df.empty:
+    df = pd.DataFrame(cities, columns=['City', 'Request Count'])
+    if not df.empty:
             df.plot(kind='bar', x='City', y='Request Count', legend=False, title='Top Cities by Requests')
             plt.ylabel('Number of Requests')
             plt.xlabel('City')
@@ -259,16 +260,16 @@ def admin_top_cities():
 
 
 def user_requests_by_status(user_id):
-    app = create_app()
-    with app.app_context():
-        statuses = db.session.query(
+   
+    
+    statuses = db.session.query(
             Service_Request.service_status,
             db.func.count(Service_Request.id).label('count')
         ).filter(Service_Request.customer_id == user_id).group_by(Service_Request.service_status).all()
-        save_path = os.path.join(IMAGE_FOLDER, "user_requests_by_status.png")
+    save_path = os.path.join(IMAGE_FOLDER, "user_requests_by_status.png")
 
-        df = pd.DataFrame(statuses, columns=['Status', 'Count'])
-        if not df.empty:
+    df = pd.DataFrame(statuses, columns=['Status', 'Count'])
+    if not df.empty:
             df.plot(kind='pie', y='Count', labels=df['Status'], autopct='%1.1f%%', legend=False,
                     title='Requests by Status')
             plt.ylabel('')
@@ -291,9 +292,9 @@ def generate_all_graphs(user_id, pro_id):
     user_service_usage(user_id, )
 
     # Professional Graphs
-    professional_monthly_jobs(pro_id, )
+    professional_daily_jobs(pro_id, )
     professional_earnings_over_time(pro_id, )
-    professional_completed_pending_jobs(pro_id, )
+    professional_completed_pending_jobs_daily(pro_id, )
 
     # Admin Graphs
     print(admin_requests_by_status())

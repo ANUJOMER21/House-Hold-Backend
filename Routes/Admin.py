@@ -2,17 +2,18 @@ from flask import Blueprint, request, jsonify, current_app
 
 from models.ServiceProfessional import ServiceProfessional
 from models.Customer import Customer
-from models.Service import Service
-from app import db
-from werkzeug.security import check_password_hash
+from database import db
 from flask_jwt_extended import create_access_token
+
 
 # Create a Blueprint for admin
 admin_bp = Blueprint('admin_bp', __name__)
 from flask_jwt_extended import jwt_required
 
 
-# Admin Login Route
+
+
+
 @admin_bp.route('/admin/login', methods=['POST'])
 def admin_login():
     print(current_app.config['ADMIN_PASSWORD'])
@@ -53,3 +54,16 @@ def block_customer(customer_id):
     professional.customer_status = "Blocked"  # Ensure this field exists in your model
     db.session.commit()
     return jsonify({"message": "Service professional deactivate", "professional_id": professional.customer_id}), 200
+
+
+@admin_bp.route('/admin/send_report')
+@jwt_required()
+def send_report():
+    from main import service_export
+    a=service_export.delay()
+
+    return jsonify( {
+            "Task_ID": a.id,
+            "Task_State": a.state,
+            "Task_Result": a.result
+        }), 202
